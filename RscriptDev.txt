@@ -1,3 +1,4 @@
+
 options(java.parameters = "-Xmx80000m")
 library(DESeq2)
 library(xlsx)
@@ -7,9 +8,8 @@ library(xlsx)
 subgem <- function(gem, anot, group ){
   
   datalist = list()
-  print(str(group))
-  subanot = subset(anot, time == group)
-  for (id in row.names(subanot)) {
+  subanot = subset(anot, Comparison == group)
+  for (id in subanot$Sample) {
     ind = which(colnames(gem) == id)
     genes = gem[0]
     exp = gem[,ind]
@@ -25,8 +25,8 @@ subanot <- function(anot, group){
   
   datalist = list()
   print(str(group))
-  subanot = subset(anot, time == group)
-  
+  subanot = subset(anot, Comparison == group)
+  print(str(subanot))
   return(subanot)
 }
 
@@ -35,8 +35,8 @@ subanot <- function(anot, group){
 run_deseq <- function(counts, annotation){
   dds <- DESeqDataSetFromMatrix(countData = counts, 
                                 colData = annotation,
-                                design = ~ condition)
-
+                                design = ~ Group)
+  
   
   # filter genes with low total counts across all samples
   dds <- dds[rowSums(counts(dds)) >= 50,]
@@ -49,14 +49,15 @@ run_deseq <- function(counts, annotation){
   
   #Sort the columns in the FPM DF.  First three samples control, next three inoculated
   
-  conditionA = which(annotation[1] == "control")
-  conditionB = which(annotation[1] == "Inoculated")
+  conditionA = which(annotation[2] == "GroupA")
+  conditionB = which(annotation[2] == "GroupB")
   
   norm = subset(norm, select=c(conditionA, conditionB))
+  print(str(norm))
   
   
   # Retrieve results
-  res <- results(dds, contrast=c("condition", "Inoculated", "control"), cooksCutoff = 0.99)
+  res <- results(dds, contrast=c("Group", "GroupA", "GroupB"))
   
   print(summary(res))
   
@@ -70,12 +71,12 @@ run_deseq <- function(counts, annotation){
 
 
 main <- function(countfile, anotfile){
-  outname = "DE_cooks-0.99_prefiltered.xls"
+  outname = "A17_NewInoc_vs_OldControl.xls"
   counts = read.delim(countfile, sep=',', header=TRUE, row.names='gene_id')
-  samples = read.delim(anotfile, sep='\t', row.names = 1)
+  samples = read.delim(anotfile, sep='\t', row.names = NULL, check.names=FALSE)
   
-  groups = unique(samples$time)
-  
+  groups = unique(samples$Comparison)
+
   for (t in groups){
     subcounts = subgem(counts, samples, t)
     subannotation = subanot(samples, t)
@@ -93,6 +94,4 @@ main <- function(countfile, anotfile){
   return(results)
 }
 
-main('gene_count_matrix.csv', 'conditions.txt')
-
-
+main('gene_count_matrix_11_30_18.csv', 'conditions.txt')
